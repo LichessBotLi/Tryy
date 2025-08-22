@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Challenge Script
         run: |
-          python challenge.py \
+          python -challenge.py \
             "${{ github.event.inputs.player_id }}" \
             "${{ github.event.inputs.num_games }}" \
             "${{ github.event.inputs.time_control }}" \
