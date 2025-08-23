@@ -47,9 +47,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install GitHub CLI
-        run: sudo apt-get update && sudo apt-get install -y gh
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -67,44 +64,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Inject Secret Token
-        run: sed -i "s/TokenTimeIsBackBuddyss/${{ secrets.LICHESS_KEY }}/g" Config/config2.yml
+        run: sed -i "s/TokenTimeIsBackBuddyss/${{ secrets.LICHESS_KEY }}/g" config.yml
 
       - name: Make Stockfish Executable
         run: |
           chmod +x ./engines/stockfish
           chmod +x ./engines/fairy-stockfish_x86-64-bmi2
-
-      - name: Cancel previous workflow run
-        id: cancel
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Checking for previous workflow runs to cancel..."
-          
-          # Get the ID of the current workflow run
-          CURRENT_RUN_ID="${{ github.run_id }}"
-          echo "Current run ID: $CURRENT_RUN_ID"
-          
-          # List all in-progress runs for this workflow on the same branch, excluding the current one
-          # Using the workflow's file name from the context to avoid ambiguity
-          PREVIOUS_RUNS=$(gh run list \
-            --workflow="${{ github.workflow }}" \
-            --branch="${{ github.ref }}" \
-            --json databaseId,status \
-            --jq '.[] | select(.status == "in_progress" or .status == "queued") | select(.databaseId != '"$CURRENT_RUN_ID"') | .databaseId')
-          
-          if [ -z "$PREVIOUS_RUNS" ]; then
-            echo "No previous runs to cancel. Proceeding."
-          else
-            echo "Found previous runs to cancel: $PREVIOUS_RUNS"
-            
-            # Iterate and cancel each run
-            for run_id in $PREVIOUS_RUNS; do
-              echo "Canceling run ID: $run_id"
-              gh run cancel "$run_id"
-              echo "Successfully sent cancel request for run ID: $run_id"
-            done
-          fi
 
       - name: Run Bot
         run: |
@@ -147,9 +112,3 @@ jobs:
           
           wait $BOT_PID
           echo "Bot ended cleanly."
-
-      - name: 🔁 Self-Restart (Fire-and-Forget)
-        if: always()
-        run: gh workflow run botli.yml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
