@@ -215,10 +215,10 @@ challenge:
 matchmaking:
   delay: 10
   timeout: 30
-  selection: cyclic
+  selection: cyclic 
   types:
     bullet:
-      tc: 1+0
+      tc: 0.5+0
 
 messages:
   greeting: "Hey! I am {me} running on {engine}.Type !assist for a glimpse of my commands."
