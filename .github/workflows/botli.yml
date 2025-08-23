@@ -73,29 +73,60 @@ jobs:
         run: |
           chmod +x ./engines/stockfish
           chmod +x ./engines/fairy-stockfish_x86-64-bmi2
+
+      - name: Cancel previous workflow run
+        id: cancel
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking for previous workflow runs to cancel..."
           
+          # Get the ID of the current workflow run
+          CURRENT_RUN_ID="${{ github.run_id }}"
+          echo "Current run ID: $CURRENT_RUN_ID"
+          
+          # List all in-progress runs for this workflow on the same branch, excluding the current one
+          PREVIOUS_RUNS=$(gh run list \
+            --workflow="${{ github.workflow }}" \
+            --branch="${{ github.ref }}" \
+            --json databaseId,status \
+            --jq '.[] | select(.status == "in_progress" or .status == "queued") | select(.databaseId != '"$CURRENT_RUN_ID"') | .databaseId')
+          
+          if [ -z "$PREVIOUS_RUNS" ]; then
+            echo "No previous runs to cancel. Proceeding."
+          else
+            echo "Found previous runs to cancel: $PREVIOUS_RUNS"
+            
+            # Iterate and cancel each run
+            for run_id in $PREVIOUS_RUNS; do
+              echo "Canceling run ID: $run_id"
+              gh run cancel "$run_id"
+              echo "Successfully sent cancel request for run ID: $run_id"
+            done
+          fi
+
       - name: Run Bot
         run: |
           echo "Starting bot..."
-
+          
           # Read inputs
           UPGRADE="${{ github.event.inputs.upgrade }}"
           MATCHMAKING="${{ github.event.inputs.matchmaking }}"
           ADDITIONAL_CMD=${{ toJSON(github.event.inputs.additional_command) }}
           NEVER_STOP="${{ github.event.inputs.never_stop }}"
           STOP_SECONDS="${{ github.event.inputs.stop_seconds }}"
-
+          
           # Build command dynamically
           CMD="python3 -u user_interface.py"
           [ "$UPGRADE" = "true" ] && CMD="$CMD --upgrade"
           [ "$MATCHMAKING" = "true" ] && CMD="$CMD matchmaking"
           [ -n "$ADDITIONAL_CMD" ] && CMD="$CMD $ADDITIONAL_CMD"
-
+          
           echo "Running command: $CMD"
           eval "$CMD" &
-
+          
           BOT_PID=$!
-
+          
           # --- Conditional matchmaking stop ---
           if [ "$MATCHMAKING" = "true" ]; then
             if [ "$NEVER_STOP" = "true" ]; then
@@ -109,10 +140,10 @@ jobs:
               fi
             fi
           fi
-
+          
           # Auto-exit after 350 minutes
           ( sleep 21000 && echo "Time up. Killing bot..." && kill -SIGTERM $BOT_PID ) &
-
+          
           wait $BOT_PID
           echo "Bot ended cleanly."
 
