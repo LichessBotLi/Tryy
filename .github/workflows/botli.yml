@@ -1,5 +1,5 @@
 name: Run botli  
-  
+
 on:  
   workflow_dispatch:  
     inputs:  
@@ -26,16 +26,16 @@ on:
         description: "Seconds to wait before sending stop command (ignored if never_stop ticked)"  
         required: false  
         default: ""  
-  
+
   push:  
     branches:  
       - "main"  
     paths:  
       - "user_interface.py"  
-  
+
   schedule:  
     - cron: "1 */5 * * *" # Every 5 hours at minute 1  
-  
+
 jobs:  
   build:  
     runs-on: ubuntu-latest  
@@ -43,16 +43,16 @@ jobs:
     env:  
       LICHESS_BOT_TOKEN: ${{ secrets.LICHESS_KEY }}  
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-  
+
     steps:  
       - name: Checkout repo  
         uses: actions/checkout@v3  
-  
+
       - name: Set up Python  
         uses: actions/setup-python@v4  
         with:  
           python-version: '3.13'  
-  
+
       - name: Cache pip dependencies  
         uses: actions/cache@v4  
         with:  
@@ -60,40 +60,41 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}  
           restore-keys: |  
             ${{ runner.os }}-pip-  
-  
+
       - name: Install Python dependencies  
         run: pip install -r requirements.txt  
-  
+
       - name: Inject Secret Token  
         run: sed -i "s/TokenTimeIsBackBuddyss/${{ secrets.LICHESS_KEY }}/g" config.yml  
-  
+
       - name: Make Stockfish Executable  
         run: |  
           chmod +x ./engines/stockfish  
           chmod +x ./engines/fairy-stockfish_x86-64-bmi2  
-  
+
       - name: Install GitHub CLI  
         run: |  
           type -p gh || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&  
           sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&  
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null &&  
           sudo apt update && sudo apt install gh -y)  
-  
+
       - name: Wait if another workflow is active  
         run: |  
           echo "Checking for running workflows..."  
+          CURRENT_RUN_ID=${{ github.run_id }}  
           while true; do  
-            COUNT=$(gh run list --workflow "Run botli" --status in_progress --json status --jq 'length')  
+            COUNT=$(gh run list --workflow "Run botli" --status in_progress --json databaseId --jq "[.[].databaseId | select(. != $CURRENT_RUN_ID)] | length")  
             if [ "$COUNT" -eq 0 ]; then  
-              echo "No active workflow detected. Proceeding..."  
+              echo "No other active workflows detected. Proceeding..."  
               break  
             fi  
-            echo "Found $COUNT workflow(s) still running. Waiting 60s..."  
+            echo "Found $COUNT other workflow(s) still running. Waiting 60s..."  
             sleep 60  
           done  
         env:  
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-  
+
       - name: Run Bot  
         run: |  
           echo "Starting bot..."  
