@@ -86,6 +86,7 @@ jobs:
           echo "Current run ID: $CURRENT_RUN_ID"
           
           # List all in-progress runs for this workflow on the same branch, excluding the current one
+          # Using the workflow's file name from the context to avoid ambiguity
           PREVIOUS_RUNS=$(gh run list \
             --workflow="${{ github.workflow }}" \
             --branch="${{ github.ref }}" \
