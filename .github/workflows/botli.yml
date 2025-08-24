@@ -79,19 +79,22 @@ jobs:
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null &&  
           sudo apt update && sudo apt install gh -y)  
 
-      - name: Wait if another workflow is active  
+      - name: Cancel any previous active workflows  
         run: |  
-          echo "Checking for running workflows..."  
+          echo "Checking for previous active workflows..."  
           CURRENT_RUN_ID=${{ github.run_id }}  
-          while true; do  
-            COUNT=$(gh run list --workflow "Run botli" --status in_progress --json databaseId --jq "[.[].databaseId | select(. != $CURRENT_RUN_ID)] | length")  
-            if [ "$COUNT" -eq 0 ]; then  
-              echo "No other active workflows detected. Proceeding..."  
-              break  
-            fi  
-            echo "Found $COUNT other workflow(s) still running. Waiting 60s..."  
-            sleep 60  
-          done  
+
+          RUNS=$(gh run list --workflow "Run botli" --status in_progress --json databaseId --jq ".[].databaseId" | grep -v "^$" | grep -v "$CURRENT_RUN_ID" || true)  
+
+          if [ -n "$RUNS" ]; then  
+            echo "Found previous active workflow(s): $RUNS"  
+            for RUN_ID in $RUNS; do  
+              echo "Cancelling workflow $RUN_ID..."  
+              gh run cancel "$RUN_ID"  
+            done  
+          else  
+            echo "No previous active workflows found."  
+          fi  
         env:  
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
 
