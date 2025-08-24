@@ -36,6 +36,10 @@ on:
   schedule:  
     - cron: "1 */5 * * *" # Every 5 hours at minute 1  
 
+permissions:
+  actions: write
+  contents: read  
+
 jobs:  
   build:  
     runs-on: ubuntu-latest  
